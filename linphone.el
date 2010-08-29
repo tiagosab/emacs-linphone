@@ -25,17 +25,16 @@
 
 ;;; Code:
 
-(defvar linphcsh-binary "/usr/local/bin/linphonecsh")
+(defvar linphcsh-binary "/usr/local/bin/linphonecsh"
+  "Path of the linphonecsh binary.")
+
+(defvar linph-configuration "~/.linphonerc"
+  "Path of the linphone configuration file.")
 
 (defvar linph-already-running-string
   (concat "A running linphonec has been"
 	  " found, not spawning a second one."
 	  "\n"))
-
-(defvar linph-sip-accounts nil
-  "List of lists. Each sub-list contains exactly three elements
-as strings. First the SIP identity of the user, then the SIP
-proxy and finally the password.")
 
 (defun linph-wait (message sec)
   (if (and (not (stringp message))
@@ -80,21 +79,11 @@ proxy and finally the password.")
   (linph-parse-status
    (apply 'linph-command commands)))
 
-(defun linph-register (sip-identity sip-proxy password)
-  (when (not (and (stringp sip-identity)
-		  (stringp sip-proxy)
-		  (stringp password)))
-    (error "bad arguments: %s" sip-identity sip-proxy password))
-  (when (not (linph-command-alive-p))
-    (error "linphonec not running"))
-  (let ((response
-	 (linph-command "generic" "register"
-			sip-identity sip-proxy password)))
-    response))
-
 (defun linph-command-init ()
   "Start a background instance of linphonec."
-  (when (string= (linph-command "init")
+  (when (string= (linph-command "init" "-c"
+				(expand-file-name
+				 linph-configuration))
 		 linph-already-running-string)
     (error "linphonec already running."))
   (linph-wait "waiting for linphone to start" 2)
