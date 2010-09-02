@@ -22,6 +22,7 @@
 
 ;;; Commentary:
 ;;
+;; Written against Linphone version 3.3.2 on GNU/Linux
 
 ;;; Code:
 
@@ -31,12 +32,44 @@
 (defvar linph-configuration "~/.linphonerc"
   "Path of the linphone configuration file.")
 
+(defvar linph-contacts nil
+  "A list of lists representing a phonebook. Each sublist is of
+the form: (name phone type). NAME and PHONE are strings. TYPE is
+a symbol.")
+
+(defvar linph-providers nil
+  "A list of lists representing VOIP providers. These should
+correspond to those in the ~/.linphonerc file. Each sublist is of
+the form: (name proxy-name type-list). NAME and
+PROXY-NAME are strings. TYPE-LIST is a list of symbols.")
+
+;; Trying to keel all of the scanner strings and regular expressions
+;; up here and out of the code. No idea if the next version of
+;; linphonec/sh will change them and it will be a drag to have to comb
+;; through the code to find them all.
+
+(defvar linph-pair-regexp "^\\(.*\\)=\\(.*\\)$"
+  "Scanner string for a name-value pair.")
+
 (defvar linph-already-running-string
   (concat "A running linphonec has been"
 	  " found, not spawning a second one."
-	  "\n"))
+	  "\n")
+  "Scanner string for running instance.")
+
+(defvar linph-hook-string "hook="
+  "Scanner string for hook status.")
+
+(defvar linph-in-call-string "Call "
+  "Scanner string for in-call status.")
+
+(defvar linph-not-running-string
+  (concat "ERROR: Failed to connect"
+	  " pipe: Connection refused\n")
+  "Scanner string for when linphone isn't running.")
 
 (defun linph-wait (message sec)
+  "Display MESSAGE with rolling ellipsis while sleeping SEC."
   (if (and (not (stringp message))
 	   (not (integerp sec)))
       (error "bad arguments: %s %s" message sec)
