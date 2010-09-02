@@ -80,6 +80,8 @@ PROXY-NAME are strings. TYPE-LIST is a list of symbols.")
 	(setq ellipsis (concat ellipsis "."))))))
 
 (defun linph-command (&rest args)
+  "Send the command ARGS to the linphone process.
+Returns whatever the linphone process returned as a string."
   (with-temp-buffer
     (condition-case nil
 	(apply 'call-process (append
@@ -90,11 +92,12 @@ PROXY-NAME are strings. TYPE-LIST is a list of symbols.")
     (buffer-substring-no-properties
      (point-min) (point-max))))
 
-(defun linph-parse-status (str)
+(defun linph-parse-name-value-pair (str)
+  "Parse the name-value pair in STR or barf."
   (with-temp-buffer
     (insert str)
     (goto-char (point-min))
-    (if (re-search-forward "^\\(.*\\)=\\(.*\\)$" (point-max) t)
+    (if (re-search-forward linph-pair-regexp (point-max) t)
 	(let ((command (match-string-no-properties 1))
 	      (status  (match-string-no-properties 2)))
 	  (if (and command status)
@@ -104,13 +107,31 @@ PROXY-NAME are strings. TYPE-LIST is a list of symbols.")
 
 (defun linph-assert-alive ()
   "Throw an error if linphonec isn't running."
-  (when (not (linph-command-alive-p))
-    (error "linphonec isn't running")))
+  (let ((state (linph-command-alive-p)))
+    (if (not state)
+	(error "linphonec isn't running")
+      state)))
 
-(defun linph-get-status (&rest commands)
+(defun linph-send-status-command (&rest commands)
+  "Send COMMANDS and parse the result as a name-value pair."
   (linph-assert-alive)
-  (linph-parse-status
+  (linph-parse-name-value-pair
    (apply 'linph-command commands)))
+
+(defun linph-send-command (&rest commands)
+  "Send COMMANDS."
+  (linph-assert-alive)
+  (apply 'linph-command commands))
+
+(defun linph-send-call (identity registrar)
+  "Place a call to IDENTITY via REGISTRAR."
+  (let ((state (linph-assert-alive)))
+    (cond ((equal state 'in-call)
+	   (error "terminate current call first"))
+	  (state
+	   (linph-send-command
+	    "generic" (concat "call sip:" identity "@" registrar)))
+	  (t (error "unhandled call error")))))
 
 (defun linph-command-init ()
   "Start a background instance of linphonec."
@@ -127,10 +148,14 @@ PROXY-NAME are strings. TYPE-LIST is a list of symbols.")
 (defun linph-command-alive-p ()
   "Return a truth value if linphone is running."
   (let ((output (linph-command "status" "hook")))
-    (cond ((string= (substring output 0 5) "hook=") t)
+    (cond ((string= (substring output 0 5)
+		    linph-hook-string)
+	   t)
+	  ((string= (substring output 0 5)
+		    linph-in-call-string)
+	   'in-call)
 	  ((string= output
-		    (concat "ERROR: Failed to connect"
-			    " pipe: Connection refused\n")) nil)
+		    linph-not-running-string) nil)
 	  (t (error "unhandled response: %s" output)))))
 
 (defun linph-command-exit ()
@@ -140,6 +165,33 @@ PROXY-NAME are strings. TYPE-LIST is a list of symbols.")
   (if (not (linph-command-alive-p))
       (message "linphonec successfully shut down")
     (error "failed to shut down linphonec")))
+
+(defun linph-search-providers (contact)
+  "Return the provider suitable for calling CONTACT."
+  (let ((type (nth 2 contact))
+	(providers (copy-tree linph-providers))
+	result)
+    ;; the list of providers will always be short so iterating through
+    ;; the list each time anew is effectively constant time
+    (while providers
+      (let ((current (car providers)))
+	(if (member type (nth 2 current))
+	    (progn
+	      (setq result current)
+	      (setq providers nil))
+	  (setq providers (cdr providers)))))
+    result))
+
+(defun linph-call-contact (contact)
+  "Place a call to CONTACT using suitable provider."
+  (let ((provider (linph-search-providers contact)))
+    (when (not provider)
+      (error "no provider for contact: %s" (car contact)))
+    (let ((registrar (cadr provider))
+	  (identity  (cadr contact))
+	  (name      (car  contact)))
+      (linph-send-call identity registrar)
+      (message "calling %s via %s" name registrar))))
 
 (provide 'linphone)
 
