@@ -63,6 +63,10 @@ PROXY-NAME are strings. TYPE-LIST is a list of symbols.")
 (defvar linph-in-call-string "Call "
   "Scanner string for in-call status.")
 
+
+(defvar linph-incoming-call-string "Incom"
+  "Scanner string for incoming-call status.")
+
 (defvar linph-not-running-string
   (concat "ERROR: Failed to connect"
 	  " pipe: Connection refused\n")
@@ -105,6 +109,22 @@ Returns whatever the linphone process returned as a string."
 	    (error "could not parse: %s" str)))
       (error "could not parse: %s" str))))
 
+(defun linph-command-alive-p ()
+  "Return a truth value if linphone is running."
+  (let ((output (linph-command "status" "hook")))
+    (cond ((string= (substring output 0 5)
+		    linph-hook-string)
+	   t)
+	  ((string= (substring output 0 5)
+		    linph-in-call-string)
+	   'in-call)
+	  ((string= (substring output 0 5)
+		    linph-incoming-call-string)
+	   'incoming-call)
+	  ((string= output
+		    linph-not-running-string) nil)
+	  (t (error "unhandled response: %s" output)))))
+
 (defun linph-assert-alive ()
   "Throw an error if linphonec isn't running."
   (let ((state (linph-command-alive-p)))
@@ -145,19 +165,6 @@ Returns whatever the linphone process returned as a string."
       (message "linphonec successfully started")
     (error "could not start linphone")))
 
-(defun linph-command-alive-p ()
-  "Return a truth value if linphone is running."
-  (let ((output (linph-command "status" "hook")))
-    (cond ((string= (substring output 0 5)
-		    linph-hook-string)
-	   t)
-	  ((string= (substring output 0 5)
-		    linph-in-call-string)
-	   'in-call)
-	  ((string= output
-		    linph-not-running-string) nil)
-	  (t (error "unhandled response: %s" output)))))
-
 (defun linph-command-exit ()
   "Kill the running linphone."
   (linph-command "exit")
@@ -192,6 +199,19 @@ Returns whatever the linphone process returned as a string."
 	  (name      (car  contact)))
       (linph-send-call identity registrar)
       (message "calling %s via %s" name registrar))))
+
+(defun linph-call (contact)
+  (interactive (list (completing-read "Contact: " '("asdf" "qwer" "oiu")))))
+
+(defun linph-answer ()
+  "Answer the call."
+  (interactive)
+  (linph-send-command "generic" "answer"))
+
+(defun linph-terminate ()
+  "Terminate the call."
+  (interactive)
+  (linph-send-command "generic" "terminate"))
 
 (provide 'linphone)
 
