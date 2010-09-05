@@ -223,6 +223,16 @@ Returns whatever the linphone process returned as a string."
   (interactive)
   (linph-send-command "generic" "terminate"))
 
+(defun linph-quit ()
+  "Start linphone."
+  (interactive)
+  (linph-command-exit))
+
+(defun linph-start ()
+  "Quit linphone."
+  (interactive)
+  (linph-command-init))
+
 (provide 'linphone)
 
 ;;; linphone.el ends here.
