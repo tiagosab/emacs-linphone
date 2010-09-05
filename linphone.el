@@ -32,10 +32,11 @@
 (defvar linph-configuration "~/.linphonerc"
   "Path of the linphone configuration file.")
 
-(defvar linph-contacts nil
-  "A list of lists representing a phonebook. Each sublist is of
-the form: (name phone type). NAME and PHONE are strings. TYPE is
-a symbol.")
+(defvar linph-contacts-hashtable nil
+  "A hash-table of lists representing a phonebook. The key is the
+contact NAME. The value is the list. Each list is of the
+form: (name phone type). NAME and PHONE are strings. TYPE is a
+symbol.")
 
 (defvar linph-providers nil
   "A list of lists representing VOIP providers. These should
@@ -62,7 +63,6 @@ PROXY-NAME are strings. TYPE-LIST is a list of symbols.")
 
 (defvar linph-in-call-string "Call "
   "Scanner string for in-call status.")
-
 
 (defvar linph-incoming-call-string "Incom"
   "Scanner string for incoming-call status.")
@@ -201,7 +201,17 @@ Returns whatever the linphone process returned as a string."
       (message "calling %s via %s" name registrar))))
 
 (defun linph-call (contact)
-  (interactive (list (completing-read "Contact: " '("asdf" "qwer" "oiu")))))
+  "Interactively place a call to CONTACT."
+  (interactive
+   (list
+    (completing-read "Contact: "
+		     (let (e)
+		       (maphash
+			'(lambda (k v)
+			   (setq e (append (list k) e)))
+			linph-contacts-hashtable)
+		       e))))
+  (linph-call-contact (gethash contact linph-contacts-hashtable)))
 
 (defun linph-answer ()
   "Answer the call."
