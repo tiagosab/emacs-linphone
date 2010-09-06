@@ -153,13 +153,15 @@ Returns whatever the linphone process returned as a string."
 	    "generic" (concat "call sip:" identity "@" registrar)))
 	  (t (error "unhandled call error")))))
 
-(defun linph-command-init ()
+(defun linph-command-init (&optional no-error)
   "Start a background instance of linphonec."
   (when (string= (linph-command "init" "-c"
 				(expand-file-name
 				 linph-configuration))
 		 linph-already-running-string)
-    (error "linphonec already running."))
+    (if no-error
+	(message "linphonec already running.")
+      (error "linphonec already running.")))
   (linph-wait "waiting for linphone to start" 2)
   (if (linph-command-alive-p)
       (message "linphonec successfully started")
@@ -228,10 +230,10 @@ Returns whatever the linphone process returned as a string."
   (interactive)
   (linph-command-exit))
 
-(defun linph-start ()
+(defun linph-start (&optional no-error)
   "Quit linphone."
   (interactive)
-  (linph-command-init))
+  (linph-command-init no-error))
 
 (provide 'linphone)
 
