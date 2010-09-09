@@ -72,6 +72,24 @@ PROXY-NAME are strings. TYPE-LIST is a list of symbols.")
 	  " pipe: Connection refused\n")
   "Scanner string for when linphone isn't running.")
 
+(defvar linph-start-hook nil
+  "Hook called after linphone starts.")
+
+(defvar linph-quit-hook nil
+  "Hook called after linphone quits.")
+
+(defvar linph-call-hook nil
+  "Hook called after a call is made.")
+
+(defvar linph-disconnect-hook nil
+  "Hook called after a call is ended.")
+
+(defvar linph-answer-hook nil
+  "Hook called after a call is answered.")
+
+(defvar linph-state-change-hook nil
+  "Hook called when there is likely a linphone state change.")
+
 (defun linph-wait (message sec)
   "Display MESSAGE with rolling ellipsis while sleeping SEC."
   (if (and (not (stringp message))
@@ -150,7 +168,9 @@ Returns whatever the linphone process returned as a string."
 	   (error "terminate current call first"))
 	  (state
 	   (linph-send-command
-	    "generic" (concat "call sip:" identity "@" registrar)))
+	    "generic" (concat "call sip:" identity "@" registrar))
+	   (run-hooks 'linph-call-hook)
+	   (run-hooks 'linph-state-change-hook))
 	  (t (error "unhandled call error")))))
 
 (defun linph-command-init (&optional no-error)
@@ -164,7 +184,9 @@ Returns whatever the linphone process returned as a string."
       (error "linphonec already running.")))
   (linph-wait "waiting for linphone to start" 2)
   (if (linph-command-alive-p)
-      (message "linphonec successfully started")
+      (progn
+	(message "linphonec successfully started")
+	(run-hooks 'linph-quit-hook))
     (error "could not start linphone")))
 
 (defun linph-command-exit ()
@@ -200,7 +222,9 @@ Returns whatever the linphone process returned as a string."
 	  (identity  (cadr contact))
 	  (name      (car  contact)))
       (linph-send-call identity registrar)
-      (message "calling %s via %s" name registrar))))
+      (message "calling %s via %s" name registrar)
+      (run-hooks 'linph-call-hook)
+      (run-hooks 'linph-state-change-hook))))
 
 (defun linph-call (contact)
   "Interactively place a call to CONTACT."
@@ -218,12 +242,16 @@ Returns whatever the linphone process returned as a string."
 (defun linph-answer ()
   "Answer the call."
   (interactive)
-  (linph-send-command "generic" "answer"))
+  (linph-send-command "generic" "answer")
+  (run-hooks 'linph-answer-hook)
+  (run-hooks 'linph-state-change-hook))
 
 (defun linph-terminate ()
   "Terminate the call."
   (interactive)
-  (linph-send-command "generic" "terminate"))
+  (linph-send-command "generic" "terminate")
+  (run-hooks 'linph-disconnect-hook)
+  (run-hooks 'linph-state-change-hook))
 
 (defun linph-quit ()
   "Start linphone."
